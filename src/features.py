@@ -109,6 +109,8 @@ def early_features(cell, hi=100, lo=10):
         "dq_mean": np.log10(abs(np.nanmean(dq))),
         "dq_var": np.log10(np.nanvar(dq)),
         "dq_skew": np.log10(abs(skew(dq, nan_policy="omit"))),
+        # 팀 정의 : |왜도| 는 부호를 버려 Batch 2 처럼 부호가 섞인 배치에서 서로 다른 모양을 같은 값으로 묶는다
+        "dq_skew_signed": float(skew(dq, nan_policy="omit")),
         "dq_kurt": np.log10(abs(kurtosis(dq, nan_policy="omit"))),
         "dq_2v": dq[-1],  # 2.0V 지점의 ΔQ
     }

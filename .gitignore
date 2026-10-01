@@ -1,0 +1,12 @@
+# 가상환경 · 캐시
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+
+# 데이터 (원본 .mat 약 7.8GB, 변환 pickle 약 265MB → 저장소에 올리지 않음. data/README.md 참고)
+data/raw/
+data/processed/
+*.mat
+*.pkl

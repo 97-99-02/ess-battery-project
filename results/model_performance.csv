@@ -1,0 +1,10 @@
+구분,MAPE (%),비고
+Train (Batch 1 CV),8.93,"train 32셀 정책 단위 GroupKFold(5), 폴드 표준편차 3.1"
+Valid (Batch 1 Hold-out),10.41,"9셀·5정책, 부트스트랩 95% 구간 4.7~17.5"
+Test (Batch 2),26.17,"Batch 1 41셀로 다시 학습한 최종 모델, 한 번 평가"
+Gap (Train-Valid),1.48,Valid - Train. (+) : 과적합 의심
+Gap (Valid-Test),15.76,Test - Valid. (+) : 배치간 일반화 저하 의심
+Gap (Target-Test),17.07,Test - 9.1 (원논문 Target). 같은 구조 variance 모델 재구성값 12.3 대비 +13.87
+Test (Batch 3),13.25,"추가 검증, 규칙 ① 에 쓰지 않은 배치"
+Gap (Batch2-Batch3),-12.92,Batch 3 - Batch 2
+"Gap (Target-Test, Batch 3)",4.15,"Batch 3 - 9.1. Batch 3 는 논문 secondary test 와 같은 셀, variance 모델 secondary 11.4 대비 +1.85"

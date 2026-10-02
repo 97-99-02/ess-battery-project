@@ -10,6 +10,7 @@ Qdlin 의 행 j 는 cycle j+1 이다. Batch 1 은 cycle 1 이 비어 있다(QD=0
 
 import pickle
 import re
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -113,6 +114,10 @@ def early_features(cell, hi=100, lo=10):
         "dq_skew_signed": float(skew(dq, nan_policy="omit")),
         "dq_kurt": np.log10(abs(kurtosis(dq, nan_policy="omit"))),
         "dq_2v": dq[-1],  # 2.0V 지점의 ΔQ
+        # 논문 Supplementary Table 1 정의 (DAY 2) : 일반 첨도 m4/m2², 2V 값은 log10|ΔQ(2V)|
+        # DAY 1 설계서의 숫자를 재현할 수 있도록 위 두 열은 그대로 두고 새 열로 추가한다.
+        "dq_kurt_p": np.log10(kurtosis(dq, fisher=False, nan_policy="omit")),
+        "dq_2v_p": np.log10(abs(dq[-1])),
     }
     # 방전 용량 열화
     f["qd_c2"] = qd[_pos(2)]
@@ -131,7 +136,9 @@ def early_features(cell, hi=100, lo=10):
     ir = s["IR"].astype(float)
     ir[ir <= 0] = np.nan
     f["ir_c2"] = ir[_pos(2)]
-    f["ir_min"] = np.nanmin(ir[win])
+    with np.errstate(all="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # Batch 2 의 6셀은 내부저항이 통째로 없어 NaN
+        f["ir_min"] = np.nanmin(ir[win])
     f["ir_c100_minus_c2"] = ir[_pos(hi)] - ir[_pos(2)]
     return f
 
@@ -157,6 +164,24 @@ def cell_table(cells, hi=100, lo=10):
     df = pd.DataFrame(rows)
     df["log_life"] = np.log10(df["life"])
     return df
+
+
+def add_batch_relative(df, col="qd_c2"):
+    """배치 단위 보정 피처 (라벨 미사용). 평균·표준편차는 같은 배치의 사용 셀 전체 입력으로 계산한다.
+    - {col}_bc : 같은 배치 평균을 뺀 값 (중심화, 확장 1순위)
+    - {col}_bz : 중심화한 값을 같은 배치 표준편차로 나눈 값 (표준화, 민감도)
+    Batch 1 은 train·valid 구분 없이 41셀 전체 평균을 쓴다 (설계서 S4 각주)."""
+    g = df.groupby("batch")[col]
+    df[f"{col}_bc"] = df[col] - g.transform("mean")
+    df[f"{col}_bz"] = df[f"{col}_bc"] / g.transform("std")
+    return df
+
+
+def model_table(names=("b1", "b2", "b3")):
+    """모델링용 셀 표 : 제외 셀을 뺀 사용 셀(41 / 39 / 40)과 초기 사이클 피처, 배치 보정 피처."""
+    df = cell_table(load_cells(names))
+    df = df[df["exclude"] == ""].reset_index(drop=True)
+    return add_batch_relative(df, "qd_c2")
 
 
 def knee_point(cell):

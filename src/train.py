@@ -172,6 +172,12 @@ def evaluate(spec, train, valid, b1, tests):
     if spec["test"]:
         m41, params = fit(spec, b1, inner_splits=5)
         out["final_params"] = str(params) if params else ""
+        if isinstance(m41, Pipeline) and isinstance(m41.named_steps["m"], LinearRegression):
+            # 표준화 → 선형회귀를 원래 단위의 식으로 : log10(수명) = intercept + Σ coef·x
+            sc, lr = m41.named_steps["sc"], m41.named_steps["m"]
+            coef = lr.coef_ / sc.scale_
+            out["final_formula"] = f"log10(life) = {lr.intercept_ - (coef * sc.mean_).sum():.4f} " + " ".join(
+                f"{c:+.4f}·{n}" for c, n in zip(coef, spec["cols"]))
         for name, df in tests.items():
             p = m41.predict(df[spec["cols"]].values)
             rows.append(dict(split=name, cell=df.cell, y=df.log_life, p=p))
@@ -185,21 +191,23 @@ def evaluate(spec, train, valid, b1, tests):
 
 
 def format_table(r):
-    """과제 Performance Reporting 포맷 (Regression) + Batch 3 행. Gap 은 (+) 가 '나빠짐' 이 되도록 오른쪽 - 왼쪽."""
+    """과제 Performance Reporting 포맷 (Regression, Batch 3 추가 포함) 과 같은 2단 구조.
+    Gap 은 모두 '뒤 - 앞' (예 : Train-Valid = Valid - Train) 으로 계산해 MAPE 에서 (+) 가 나빠짐이 되게 한다."""
     rows = [
-        ("Train (Batch 1 CV)", r.cv_mape, f"train 32셀 정책 단위 GroupKFold(5), 폴드 표준편차 {r.cv_std:.1f}"),
-        ("Valid (Batch 1 Hold-out)", r.valid_mape, f"9셀·5정책, 부트스트랩 95% 구간 {r.valid_ci_lo:.1f}~{r.valid_ci_hi:.1f}"),
-        ("Test (Batch 2)", r.b2_mape, "Batch 1 41셀로 다시 학습한 최종 모델, 한 번 평가"),
-        ("Gap (Train-Valid)", r.valid_mape - r.cv_mape, "Valid - Train. (+) : 과적합 의심"),
-        ("Gap (Valid-Test)", r.b2_mape - r.valid_mape, "Test - Valid. (+) : 배치간 일반화 저하 의심"),
-        ("Gap (Target-Test)", r.b2_mape - TARGET,
-         f"Test - 9.1 (원논문 Target). 같은 구조 variance 모델 재구성값 {PAPER_VARIANCE} 대비 {r.b2_mape - PAPER_VARIANCE:+.2f}"),
-        ("Test (Batch 3)", r.b3_mape, "추가 검증, 규칙 ① 에 쓰지 않은 배치"),
-        ("Gap (Batch2-Batch3)", r.b3_mape - r.b2_mape, "Batch 3 - Batch 2"),
-        ("Gap (Target-Test, Batch 3)", r.b3_mape - TARGET,
-         f"Batch 3 - 9.1. Batch 3 는 논문 secondary test 와 같은 셀, variance 모델 secondary {PAPER_SECONDARY_VAR} 대비 {r.b3_mape - PAPER_SECONDARY_VAR:+.2f}"),
+        ("Train (Batch 1 CV)", "", r.cv_mape, f"train 32셀 정책 단위 GroupKFold(5), 폴드 표준편차 {r.cv_std:.1f}"),
+        ("Valid (Batch 1 Hold-out)", "", r.valid_mape,
+         f"9셀·5정책 (train 32셀 모델), 부트스트랩 95% 구간 {r.valid_ci_lo:.1f}~{r.valid_ci_hi:.1f}"),
+        ("Test (Batch 2)", "", r.b2_mape, "Batch 1 41셀로 다시 학습한 최종 모델, 한 번 평가"),
+        ("", "Gap (Train-Valid)", r.valid_mape - r.cv_mape, "Valid - Train. (+) : 과적합 의심"),
+        ("", "Gap (Valid-Test)", r.b2_mape - r.valid_mape, "Test - Valid. (+) : 배치간 일반화 저하 의심"),
+        ("", "Gap (Target-Test)", r.b2_mape - TARGET,
+         f"Test - Target. Target : 원논문 9.1%. 같은 구조 variance 모델 재구성값 {PAPER_VARIANCE} 대비 {r.b2_mape - PAPER_VARIANCE:+.2f}"),
+        ("Test (Batch 3)", "", r.b3_mape, "추가 검증. 규칙 ① 에 쓰지 않은 배치"),
+        ("", "Gap (Batch2-Batch3)", r.b3_mape - r.b2_mape, "Batch 3 - Batch 2. Test 성능 간 비교"),
+        ("", "Gap (Target-Test)", r.b3_mape - TARGET,
+         f"Batch 3 기준 Test - Target(9.1%). Batch 3 는 원논문 secondary test 와 같은 셀, variance 모델 secondary {PAPER_SECONDARY_VAR} 대비 {r.b3_mape - PAPER_SECONDARY_VAR:+.2f}"),
     ]
-    return pd.DataFrame(rows, columns=["구분", "MAPE (%)", "비고"]).round({"MAPE (%)": 2})
+    return pd.DataFrame(rows, columns=["구분", "세부", "MAPE (%)", "비고"]).round({"MAPE (%)": 2})
 
 
 def main():

@@ -6,5 +6,5 @@ Test (Batch 2),,26.17,"Batch 1 41셀로 다시 학습한 최종 모델, 한 번 
 ,Gap (Valid-Test),15.76,Test - Valid. (+) : 배치간 일반화 저하 의심
 ,Gap (Target-Test),17.07,Test - Target. Target : 원논문 9.1%. 같은 구조 variance 모델 재구성값 12.3 대비 +13.87
 Test (Batch 3),,13.25,추가 검증. 규칙 ① 에 쓰지 않은 배치
-,Gap (Batch2-Batch3),-12.92,Batch 3 - Batch 2. Test 성능 간 비교
-,Gap (Target-Test),4.15,"Batch 3 기준 Test - Target(9.1%). Batch 3 는 원논문 secondary test 와 같은 셀, variance 모델 secondary 11.4 대비 +1.85"
+,Gap (Batch2-Batch3),12.92,"Batch 2 - Batch 3. Test 성능 간 비교, (+) : Batch 2 가 나쁨"
+,Gap (Target-Test),4.15,"Batch 3 기준 Test - Target(9.1%). Batch 3 는 원논문 secondary test 와 같은 배치, variance 모델 secondary 11.4 대비 +1.85"

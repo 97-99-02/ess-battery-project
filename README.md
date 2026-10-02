@@ -6,7 +6,7 @@
 - 주 모델 : dq_var(cycle 100·10 방전 곡선 차이의 분산) 하나를 쓰는 선형회귀. Batch 1 CV 8.9%, Valid 10.4%
 - Batch 3 13.3% 로 원논문 같은 구조 모델(11.4%)에 근접했고, Batch 2 는 26.2% 로 39셀 중 38셀을 길게 예측했다
 - Batch 2 오차의 원인은 외삽(학습 범위 밖 값으로 예측)이 아니라 같은 dq_var 에서 수명 수준이 낮은 배치 차이로 보이며, Batch 1 만으로는 고칠 수 없다
-- Batch 2 는 원논문의 테스트셋이 아니어서 Target 9.1% 와 같은 시험지로 비교할 수 있는 것은 Batch 3 뿐이다
+- Batch 2 는 원논문의 테스트셋이 아니어서, 원논문과 같은 시험지(secondary test)로 비교할 수 있는 것은 Batch 3 뿐이다 (같은 구조 variance 모델 11.4%)
 
 ## 프로젝트 개요
 - 데이터셋 : MIT-Stanford Battery Dataset (Severson et al., Nature Energy 2019)
@@ -35,6 +35,10 @@
 │   ├── model_performance.csv      # 주 모델 성능표 (과제 포맷)
 │   ├── model_comparison.csv       # 전체 모델 비교
 │   ├── predictions.csv            # 셀별 예측 (CV 폴드 밖 / valid / Batch 2 / Batch 3)
+│   ├── cv_folds.csv               # 폴드별 MAPE
+│   ├── cell_features.csv          # 셀별 피처 (01_EDA)
+│   ├── prelim_cv.csv              # DAY 1 사전 CV (02_feature_engineering)
+│   ├── procedure_timing.csv       # cycle 10 사이클 길이·휴지 시간 (procedure.py)
 │   └── figures/
 ├── requirements.txt
 └── README.md
@@ -48,6 +52,7 @@ pip install -r requirements.txt      # Python 3.11
 # data/README.md 대로 .mat 3개를 data/raw/ 에 둔다
 python src/preprocess.py             # data/processed/b1·b2·b3.pkl
 python src/train.py                  # results/*.csv
+python src/procedure.py              # 선택 : results/procedure_timing.csv (원본 .mat 시계열 필요, 결과는 커밋돼 있음)
 ```
 노트북은 01 → 02 → 03 순서로 실행한다 (03 은 `train.py` 를 다시 돌린다. 시드 42 고정이라 같은 숫자가 나온다).
 
@@ -104,7 +109,7 @@ newstructure : 충전 정책 이름에 `newstructure` 가 붙은 셀. 사이클 
 - 검증 : Batch 1 을 충전 정책 단위로 train 32셀·17정책 / valid 9셀·5정책으로 나눴다 (같은 정책 셀이 양쪽에 들어가지 않게). Train 은 train 32셀 정책 단위 GroupKFold(5), Valid 는 train 32셀 모델로 평가했다. Test 는 같은 절차를 Batch 1 41셀 전체로 다시 학습한 최종 모델로 Batch 2·3 를 한 번 평가했다. 32셀 모델과 41셀 모델의 Batch 2 예측 차이는 테스트 전에 라벨 없이 재 두었다 (0.99배).
 
 ## 성능 결과
-주 모델 F1 (`results/model_performance.csv`). Gap(Train-Valid)·(Valid-Test)·(Target-Test) 는 '뒤 − 앞' 으로 계산해 (+) 가 나빠짐이다. Gap(Batch2-Batch3) 는 이름대로 Batch 2 − Batch 3 로 적었다 (csv 에는 Batch 3 − Batch 2 = −12.92 로 저장).
+주 모델 F1 (`results/model_performance.csv`). Gap(Train-Valid)·(Valid-Test)·(Target-Test) 는 '뒤 − 앞' 으로 계산해 (+) 가 나빠짐이다. Gap(Batch2-Batch3) 는 이름대로 Batch 2 − Batch 3 다 ((+) : Batch 2 가 나쁨).
 
 | 구분 | | MAPE (%) | 비고 |
 |---|---|---|---|
@@ -116,11 +121,11 @@ newstructure : 충전 정책 이름에 `newstructure` 가 붙은 셀. 사이클 
 | | Gap (Target-Test) | +17.07 | Target : 원논문 9.1%. 같은 구조인 variance 모델을 같은 방식으로 재구성한 12.3% 대비 +13.87 |
 | Test (Batch 3) | | 13.25 | 추가 검증 |
 | | Gap (Batch2-Batch3) | +12.92 | Test 성능 간 비교. Batch 2 가 12.92%p 나쁨 |
-| | Gap (Target-Test) | +4.15 | Batch 3 기준. 같은 셀인 원논문 variance 모델 secondary test 11.4% 대비 +1.85 |
+| | Gap (Target-Test) | +4.15 | Batch 3 기준. 같은 배치인 원논문 variance 모델 secondary test 11.4% 대비 +1.85 |
 
 Target 9.1% 는 원논문 Table 1 의 full 모델(충전 시간·온도·내부저항 포함)에서 이례 셀 1개를 뺀 primary 7.5% 와 secondary 10.7% 를 셀 수로 가중한 값과 일치한다. 같은 방식으로 dq_var 하나인 variance 모델은 12.3% 다.
 
-단, 9.1% 는 원논문 test 배치(primary 2017-06-30, secondary 2018-04-12)에서 낸 값이다. 과제의 Batch 2(2018-02-20)는 원 출처([data.matr.io](https://data.matr.io/1/projects/5c48dd2bc625d700019f3204))의 논문 배치 목록(2017-05-12·2017-06-30·2018-04-12)에 없고 'Low rate data used to generate figure 4' 로 따로 분류된 파일이다. 그래서 Batch 2 의 Gap(Target-Test)은 같은 테스트셋끼리의 비교가 아니다. 원논문과 같은 셀로 비교할 수 있는 것은 Batch 3 (secondary test) 다.
+단, 9.1% 는 원논문의 test 셀에서 낸 값이다. primary test 43셀은 2017-05-12·2017-06-30 두 배치를 합쳐 train 과 번갈아 나눈 셀이고 (우리 Batch 1 셀 일부도 원논문에서는 primary test 였다), secondary test 40셀은 2018-04-12 배치다. 과제의 Batch 2(2018-02-20)는 원 출처([data.matr.io](https://data.matr.io/1/projects/5c48dd2bc625d700019f3204))의 논문 배치 목록(2017-05-12·2017-06-30·2018-04-12)에 없고 'Low rate data used to generate figure 4' 로 따로 분류된 파일이다. 그래서 Batch 2 의 Gap(Target-Test)은 같은 테스트셋끼리의 비교가 아니다. 원논문과 같은 배치로 비교할 수 있는 것은 Batch 3 (secondary test) 뿐이다.
 
 **함께 보고하는 모델** (`results/model_comparison.csv`)
 
@@ -132,6 +137,8 @@ Target 9.1% 는 원논문 Table 1 의 full 모델(충전 시간·온도·내부�
 | 기준선 : 학습 평균 | 28.29 | 24.22 | 73.24 | 18.79 |
 | 기준선 : 용량 곡선 7개 ElasticNet | 23.61 | 22.37 | 185.40 | 36.06 |
 | F3 ElasticNet (선택) | 8.84 | 10.75 | 33.45 | 9.72 |
+
+F3 ElasticNet 은 원논문 discharge 모델과 같은 구성이라, Target 과 같은 방식으로 재구성한 discharge 9.4% 와 짝지어 본다 (`model_comparison.csv` 의 `paper_ref`).
 
 확장 1순위와 2피처의 Train·Valid 가 같은 것은 오류가 아니다. Batch 1 안에서 qd_c2_bc 는 qd_c2 에서 같은 값(Batch 1 평균)을 뺀 것이라 두 모델의 예측이 같고, 차이는 평균이 다른 Batch 2·3 에 적용할 때만 생긴다.
 
@@ -176,11 +183,11 @@ Target 9.1% 는 원논문 Table 1 의 full 모델(충전 시간·온도·내부�
 - **연습 점수가 더 좋았던 2피처를 왜 고르지 않았나** : Batch 1 CV 만 보면 초기 용량을 더한 2피처(6.6%)가 F1(8.9%)보다 좋았다. 하지만 정답 없이 입력만 봐도 Batch 2 의 초기 용량이 학습 배치보다 높아 예측을 부풀릴 것이 보였다. 연습 점수보다 다른 배치로 옮겨 갈 수 있는지를 우선해 F1 을 골랐다 (결과는 위 Gap 해석).
 - **최종 모델을 32셀로 학습할지 41셀로 학습할지** : 32셀 모델 하나로 Valid 와 Test 를 보면 Gap 비교가 깔끔하고, 41셀로 다시 학습하면 데이터를 다 쓴다. 설계서가 학습 데이터를 41셀로 두고 있어 41셀을 택했다 (두 모델 차이는 테스트 전에 확인, 위 모델 선택의 검증 참고).
 - **Batch 2 결과(26%)를 보고도 주 모델을 바꾸지 않은 이유** : 테스트 결과를 보고 피처나 모델을 고치면 그 점수는 답을 보고 맞춘 점수가 된다. Batch 2 과대 예측은 DAY 1 설계서에 이미 가장 큰 위험으로 적어 둔 것이라, 모델을 바꾸는 대신 왜 틀렸는지(외삽이 아니라 배치 수준 이동)를 분석했다.
-- **ESS 교체 규칙 0.55 → 0.65** : README 를 검토하다가 교체 준비 비율 0.55 가 Batch 2 의 knee 비율, 즉 테스트 배치의 정답에서 나온 값이라는 것을 발견했다. 같은 배치로 규칙을 확인하면 순환이 된다. Batch 1 값 0.65 로 바꿔도 결론(준비 전에 수명이 끝난 셀 0개)이 같다는 것을 확인하고 바로잡았다.
-- **과제 설명과 원 출처가 다른 점** : 과제 설명과 캐글 설명만 보면 Batch 2 가 원논문 1차 테스트셋으로 보였는데, 원 출처의 배치 목록을 직접 확인해 다르다는 것을 알았다. 그래서 원논문과의 비교는 같은 셀인 Batch 3 를 중심으로 해석했다 (근거는 위 성능 결과).
+- **ESS 교체 규칙 0.55 → 0.65** : README 검토 중 받은 피드백에서, 교체 준비 비율 0.55 가 Batch 2 의 knee 비율, 즉 테스트 배치의 정답에서 나온 값이라는 지적을 받았다. 같은 배치로 규칙을 확인하면 순환이 된다. Batch 1 값 0.65 로 바꿔도 결론(준비 전에 수명이 끝난 셀 0개)이 같다는 것을 확인하고 바로잡았다.
+- **과제 설명과 원 출처가 다른 점** : 과제 설명과 캐글 설명만 보면 Batch 2 가 원논문 1차 테스트셋으로 보였는데, 원 출처의 배치 목록을 직접 확인해 다르다는 것을 알았다. 그래서 원논문과의 비교는 같은 배치인 Batch 3 를 중심으로 해석했다 (근거는 위 성능 결과).
 
 ### 팀 회고
-가장 크게 배운 건 연습 점수가 실전 성능을 보장하지 않는다는 점이었습니다. Batch 1 교차검증에서 가장 좋았던 2피처 모델이 Batch 2 에서는 가장 크게 무너지는 걸 보면서, 점수보다 다른 배치에서도 통하는 피처인지를 먼저 따져야 한다는 걸 체감했습니다. 데이터가 41셀뿐이다 보니 피처를 많이 넣거나 트리 모델을 쓰는 것보다 dq_var 하나로 그은 직선이 더 안정적이었던 것도 인상 깊었습니다. 아쉬운 점은 표본이 작아 Valid 점수가 4.7~17.5% 사이에서 크게 흔들릴 수 있다는 것, 그리고 같은 충전 정책 안에서 어느 셀이 먼저 수명이 끝날지는 끝내 잡지 못했다는 것입니다. 다시 한다면 새 배치에서 일찍 수명이 끝난 셀 몇 개로 모델을 보정하는 단계를 처음부터 설계에 넣고 싶습니다. 5셀로 절편만 맞췄는데도 Batch 2 오차가 26% 에서 11~13% 까지 줄었기 때문입니다.
+가장 크게 배운 건 연습 점수가 실전 성능을 보장하지 않는다는 점이었습니다. Batch 1 교차검증에서 가장 좋았던 2피처 모델이 Batch 2 에서는 가장 크게 무너지는 걸 보면서, 점수보다 다른 배치에서도 통하는 피처인지를 먼저 따져야 한다는 걸 체감했습니다. 데이터가 41셀뿐이다 보니 피처를 많이 넣거나 트리 모델을 쓰는 것보다 dq_var 하나로 그은 직선이 더 안정적이었던 것도 인상 깊었습니다. 아쉬운 점은 표본이 작아 Valid 점수가 4.7~17.5% 사이에서 크게 흔들릴 수 있다는 것, 그리고 같은 충전 정책 안에서 어느 셀이 먼저 수명이 끝날지는 끝내 잡지 못했다는 것입니다. 다시 한다면 새 배치에서 일찍 수명이 끝난 셀 몇 개로 모델을 보정하는 단계를 처음부터 설계에 넣고 싶습니다. 5셀로 절편만 맞췄는데도 나머지 34셀의 오차가 24~27% 에서 11~13% 로 줄었기 때문입니다.
 
 ## 참고문헌
 - Severson et al. (2019). Data-driven prediction of battery cycle life before capacity degradation. Nature Energy, 4, 383–391.

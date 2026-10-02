@@ -45,7 +45,7 @@ RES = ROOT / "results"
 TARGET = 9.1            # 과제 Target : full 모델, 이례 셀 1개 제외 primary 7.5% 와 secondary 10.7% 를 셀 수(42·40)로 가중
 PAPER_VARIANCE = 12.3   # 같은 방식으로 재구성한 variance 모델 (주 모델 F1 과 같은 구조)
 PAPER_DISCHARGE = 9.4   # 같은 방식으로 재구성한 discharge 모델 (F3 와 같은 구성)
-PAPER_SECONDARY_VAR = 11.4  # variance 모델의 secondary test (2018-04-12 = Batch 3 와 같은 40셀)
+PAPER_SECONDARY_VAR = 11.4  # variance 모델의 secondary test (2018-04-12 배치 = Batch 3)
 
 # ── 피처 세트 (설계서 S1, 부록 A14). F2·F3·F4 는 첨도·2V 를 논문 정의로 바꾼 열을 쓴다.
 DQ_P = ["dq_var", "dq_min", "dq_mean", "dq_skew", "dq_kurt_p"]
@@ -102,7 +102,7 @@ def mean_log():
 # ── 모델 목록 (설계서 S5 'DAY 2 할 일' 의 필수 / 선택)
 #   test=False : Batch 1 비교에만 쓰는 세트 (F4 는 Batch 2 내부저항 6셀 결측)
 MODELS = [
-    dict(name="F1", role="주 모델", cols=["dq_var"], make=linear, test=True),
+    dict(name="F1", role="주 모델", cols=["dq_var"], make=linear, test=True, paper=PAPER_VARIANCE),
     dict(name="F1 + qd_c2_bc", role="확장 1순위", cols=["dq_var", "qd_c2_bc"], make=linear, test=True),
     dict(name="2피처 (F1 + qd_c2)", role="비교", cols=["dq_var", "qd_c2"], make=linear, test=True),
     dict(name="기준선 : 학습 평균", role="기준선", cols=["dq_var"], make=mean_log, test=True),
@@ -110,7 +110,8 @@ MODELS = [
     dict(name="F1 + qd_c2_bz", role="선택 : 표준화 민감도", cols=["dq_var", "qd_c2_bz"], make=linear, test=True),
     dict(name="F2 ElasticNet", role="선택 : 확장 후보", cols=DQ_P, make=enet, test=True),
     dict(name="F2 Ridge", role="선택 : 규제 비교", cols=DQ_P, make=ridge, test=True),
-    dict(name="F3 ElasticNet", role="선택 : 확장 후보", cols=DQ_P + ["dq_2v_p"] + CAP, make=enet, test=True),
+    dict(name="F3 ElasticNet", role="선택 : 확장 후보", cols=DQ_P + ["dq_2v_p"] + CAP, make=enet, test=True,
+         paper=PAPER_DISCHARGE),
     dict(name="F3 Ridge", role="선택 : 규제 비교", cols=DQ_P + ["dq_2v_p"] + CAP, make=ridge, test=True),
     dict(name="F4 ElasticNet", role="선택 : Batch 1 비교만", cols=DQ_P + ["dq_2v_p"] + CAP + OTHER, make=enet, test=False),
     dict(name="F1 RandomForest", role="선택 : 비선형 비교", cols=["dq_var"], make=rf, test=True),
@@ -167,7 +168,8 @@ def evaluate(spec, train, valid, b1, tests):
             dict(split="valid", cell=valid.cell, y=valid.log_life, p=p_valid)]
     out = dict(model=spec["name"], role=spec["role"], features=" + ".join(spec["cols"]), n_feat=len(spec["cols"]),
                cv_mape=scores.mean(), cv_std=scores.std(), valid_mape=mape(valid.log_life, p_valid),
-               valid_ci_lo=ci[0], valid_ci_hi=ci[1], pi_q10=q_lo, pi_q90=q_hi)
+               valid_ci_lo=ci[0], valid_ci_hi=ci[1], pi_q10=q_lo, pi_q90=q_hi,
+               paper_ref=spec.get("paper", np.nan))  # 같은 구성의 원논문 모델을 Target 과 같은 방식으로 재구성한 값
 
     if spec["test"]:
         m41, params = fit(spec, b1, inner_splits=5)
@@ -192,7 +194,8 @@ def evaluate(spec, train, valid, b1, tests):
 
 def format_table(r):
     """과제 Performance Reporting 포맷 (Regression, Batch 3 추가 포함) 과 같은 2단 구조.
-    Gap 은 모두 '뒤 - 앞' (예 : Train-Valid = Valid - Train) 으로 계산해 MAPE 에서 (+) 가 나빠짐이 되게 한다."""
+    Gap(Train-Valid)·(Valid-Test)·(Target-Test) 는 '뒤 - 앞' (예 : Train-Valid = Valid - Train) 으로 계산해
+    MAPE 에서 (+) 가 나빠짐이 되게 한다. Gap(Batch2-Batch3) 는 이름대로 Batch 2 - Batch 3 ((+) : Batch 2 가 나쁨)."""
     rows = [
         ("Train (Batch 1 CV)", "", r.cv_mape, f"train 32셀 정책 단위 GroupKFold(5), 폴드 표준편차 {r.cv_std:.1f}"),
         ("Valid (Batch 1 Hold-out)", "", r.valid_mape,
@@ -203,9 +206,9 @@ def format_table(r):
         ("", "Gap (Target-Test)", r.b2_mape - TARGET,
          f"Test - Target. Target : 원논문 9.1%. 같은 구조 variance 모델 재구성값 {PAPER_VARIANCE} 대비 {r.b2_mape - PAPER_VARIANCE:+.2f}"),
         ("Test (Batch 3)", "", r.b3_mape, "추가 검증. 규칙 ① 에 쓰지 않은 배치"),
-        ("", "Gap (Batch2-Batch3)", r.b3_mape - r.b2_mape, "Batch 3 - Batch 2. Test 성능 간 비교"),
+        ("", "Gap (Batch2-Batch3)", r.b2_mape - r.b3_mape, "Batch 2 - Batch 3. Test 성능 간 비교, (+) : Batch 2 가 나쁨"),
         ("", "Gap (Target-Test)", r.b3_mape - TARGET,
-         f"Batch 3 기준 Test - Target(9.1%). Batch 3 는 원논문 secondary test 와 같은 셀, variance 모델 secondary {PAPER_SECONDARY_VAR} 대비 {r.b3_mape - PAPER_SECONDARY_VAR:+.2f}"),
+         f"Batch 3 기준 Test - Target(9.1%). Batch 3 는 원논문 secondary test 와 같은 배치, variance 모델 secondary {PAPER_SECONDARY_VAR} 대비 {r.b3_mape - PAPER_SECONDARY_VAR:+.2f}"),
     ]
     return pd.DataFrame(rows, columns=["구분", "세부", "MAPE (%)", "비고"]).round({"MAPE (%)": 2})
 

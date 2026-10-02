@@ -19,6 +19,7 @@ from scipy.stats import kurtosis, skew
 
 ROOT = Path(__file__).resolve().parents[1]
 PROC_DIR = ROOT / "data" / "processed"
+CSV_TABLE = ROOT / "results" / "cell_features.csv"  # 01_EDA 가 저장한 사용 셀 120개의 피처 표
 
 # 세 배치 공통 전압축 (Vdlin) : 3.5V → 2.0V, 1000 포인트
 VDLIN = np.linspace(3.5, 2.0, 1000)
@@ -160,6 +161,8 @@ def cell_table(cells, hi=100, lo=10):
         row.update(parse_policy(c["charge_policy"]))
         if c["n_cycles_struct"] >= hi and not np.isnan(c["Qdlin"][_pos(hi)]).all():
             row.update(early_features(c, hi, lo))
+        # 평가용 (정답 사용) : knee 사이클. 이어 측정 셀은 EOL 구간이 없어 계산하지 않는다
+        row["knee_cycle"] = np.nan if c["carryover"] else knee_point(c)[0]
         rows.append(row)
     df = pd.DataFrame(rows)
     df["log_life"] = np.log10(df["life"])
@@ -181,6 +184,20 @@ def model_table(names=("b1", "b2", "b3")):
     """모델링용 셀 표 : 제외 셀을 뺀 사용 셀(41 / 39 / 40)과 초기 사이클 피처, 배치 보정 피처."""
     df = cell_table(load_cells(names))
     df = df[df["exclude"] == ""].reset_index(drop=True)
+    return add_batch_relative(df, "qd_c2")
+
+
+def load_table(source="auto"):
+    """모델링용 셀 표.
+    source = "pkl"  : data/processed 의 변환본에서 다시 계산 (model_table)
+             "csv"  : results/cell_features.csv 를 읽음. 원본 .mat 없이도 학습·평가를 재현할 수 있다
+             "auto" : 변환본이 있으면 pkl, 없으면 csv"""
+    if source == "auto":
+        source = "pkl" if all((PROC_DIR / f"{b}.pkl").exists() for b in ("b1", "b2", "b3")) else "csv"
+    if source == "pkl":
+        return model_table()
+    df = pd.read_csv(CSV_TABLE)
+    df = df[df["exclude"].fillna("") == ""].reset_index(drop=True)
     return add_batch_relative(df, "qd_c2")
 
 

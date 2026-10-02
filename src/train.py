@@ -1,7 +1,7 @@
 """DAY 2 모델 학습·평가. DAY 1 설계서(docs/DS-MINI-Design-*.pdf) S3·S4·S5 를 그대로 구현한다.
 
 순서
-1. 셀 표 (features.model_table) : Batch 1 41셀 / Batch 2 39셀 / Batch 3 40셀
+1. 셀 표 (features.load_table) : Batch 1 41셀 / Batch 2 39셀 / Batch 3 40셀. 원본 변환본이 없으면 results/cell_features.csv
 2. Batch 1 정책 단위 분할 (split.split_b1) : train 32셀·17정책 / valid 9셀·5정책
 3. Train : train 32셀에서 정책 단위 GroupKFold(5) MAPE. 튜닝이 있는 모델은 각 폴드 안 GroupKFold(4) (nested)
 4. Valid : train 32셀로 학습한 모델로 valid 9셀을 평가. 셀 단위 부트스트랩 2000회(시드 42) 백분위 95% 구간
@@ -11,13 +11,15 @@
 타깃은 log10(cycle life), 예측은 10^x 로 되돌려 MAPE 를 계산한다 (역변환값은 중앙값 쪽 예측).
 테스트 결과를 보고 모델·피처를 바꾸지 않는다. 아래 MODELS 는 설계서에 적힌 목록 그대로다.
 
-사용법 : python src/train.py
+사용법 : python src/train.py                # 원본 변환본(data/processed)이 있으면 그것으로, 없으면 results/cell_features.csv 로
+        python src/train.py --source csv   # 원본 없이 cell_features.csv 만으로 재현
 산출물 : results/model_performance.csv (주 모델 성능표, 과제 포맷)
         results/model_comparison.csv  (전체 모델 비교)
         results/predictions.csv       (셀별 예측 : CV 폴드 밖 / valid / Batch 2 / Batch 3)
         results/cv_folds.csv          (폴드별 MAPE)
 """
 
+import argparse
 import warnings
 from pathlib import Path
 
@@ -32,7 +34,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.exceptions import ConvergenceWarning
 from xgboost import XGBRegressor
 
-from features import model_table
+from features import load_table
 from split import SEED, split_b1
 
 # ElasticNet 튜닝 격자의 아주 작은 alpha 에서 나는 수렴 경고 (선택 모델만 해당, 고른 값과 무관)
@@ -213,8 +215,8 @@ def format_table(r):
     return pd.DataFrame(rows, columns=["구분", "세부", "MAPE (%)", "비고"]).round({"MAPE (%)": 2})
 
 
-def main():
-    df = model_table()
+def main(source="auto"):
+    df = load_table(source)
     b1 = df[df.batch == "b1"].reset_index(drop=True)
     train, valid = split_b1(b1)
     train, valid = train.reset_index(drop=True), valid.reset_index(drop=True)
@@ -249,4 +251,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--source", choices=["auto", "pkl", "csv"], default="auto",
+                    help="셀 표를 어디서 읽을지 (auto : 변환본이 있으면 pkl, 없으면 csv)")
+    main(ap.parse_args().source)

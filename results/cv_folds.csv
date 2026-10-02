@@ -1,0 +1,66 @@
+model,fold,mape
+F1,1,14.907
+F1,2,6.199
+F1,3,8.6102
+F1,4,7.0129
+F1,5,7.9071
+F1 + qd_c2_bc,1,11.0851
+F1 + qd_c2_bc,2,2.9522
+F1 + qd_c2_bc,3,5.6063
+F1 + qd_c2_bc,4,8.4171
+F1 + qd_c2_bc,5,5.0703
+2피처 (F1 + qd_c2),1,11.0851
+2피처 (F1 + qd_c2),2,2.9522
+2피처 (F1 + qd_c2),3,5.6063
+2피처 (F1 + qd_c2),4,8.4171
+2피처 (F1 + qd_c2),5,5.0703
+기준선 : 학습 평균,1,33.3423
+기준선 : 학습 평균,2,35.053
+기준선 : 학습 평균,3,32.246
+기준선 : 학습 평균,4,12.0194
+기준선 : 학습 평균,5,28.8013
+기준선 : 용량 곡선 7개 ElasticNet,1,33.4328
+기준선 : 용량 곡선 7개 ElasticNet,2,21.6154
+기준선 : 용량 곡선 7개 ElasticNet,3,21.7769
+기준선 : 용량 곡선 7개 ElasticNet,4,20.4702
+기준선 : 용량 곡선 7개 ElasticNet,5,20.7453
+F1 + qd_c2_bz,1,11.0851
+F1 + qd_c2_bz,2,2.9522
+F1 + qd_c2_bz,3,5.6063
+F1 + qd_c2_bz,4,8.4171
+F1 + qd_c2_bz,5,5.0703
+F2 ElasticNet,1,24.8803
+F2 ElasticNet,2,5.1516
+F2 ElasticNet,3,7.4474
+F2 ElasticNet,4,7.2648
+F2 ElasticNet,5,8.998
+F2 Ridge,1,26.6793
+F2 Ridge,2,5.0751
+F2 Ridge,3,8.9046
+F2 Ridge,4,6.8783
+F2 Ridge,5,11.053
+F3 ElasticNet,1,19.1867
+F3 ElasticNet,2,4.2164
+F3 ElasticNet,3,5.8721
+F3 ElasticNet,4,7.3721
+F3 ElasticNet,5,7.5476
+F3 Ridge,1,19.788
+F3 Ridge,2,4.7473
+F3 Ridge,3,4.9894
+F3 Ridge,4,7.7786
+F3 Ridge,5,9.4624
+F4 ElasticNet,1,17.3943
+F4 ElasticNet,2,3.5854
+F4 ElasticNet,3,9.0713
+F4 ElasticNet,4,7.0661
+F4 ElasticNet,5,9.6901
+F1 RandomForest,1,32.1358
+F1 RandomForest,2,16.719
+F1 RandomForest,3,11.1855
+F1 RandomForest,4,8.4693
+F1 RandomForest,5,8.169
+F1 XGBoost,1,30.1863
+F1 XGBoost,2,18.878
+F1 XGBoost,3,11.4101
+F1 XGBoost,4,8.2539
+F1 XGBoost,5,13.3731

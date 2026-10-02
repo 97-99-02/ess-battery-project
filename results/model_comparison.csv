@@ -1,0 +1,14 @@
+model,role,features,n_feat,cv_mape,cv_std,valid_mape,valid_ci_lo,valid_ci_hi,pi_q10,pi_q90,final_params,b2_mape,b3_mape
+F1,주 모델,dq_var,1,8.93,3.1,10.41,4.7,17.54,-0.052,0.0496,,26.17,13.25
+F1 + qd_c2_bc,확장 1순위,dq_var + qd_c2_bc,2,6.63,2.83,6.63,3.05,10.92,-0.0394,0.048,,26.56,12.79
+2피처 (F1 + qd_c2),비교,dq_var + qd_c2,2,6.63,2.83,6.63,3.05,10.92,-0.0394,0.048,,45.8,10.53
+기준선 : 학습 평균,기준선,dq_var,1,28.29,8.39,24.22,9.44,40.77,-0.1768,0.2803,,73.24,18.79
+기준선 : 용량 곡선 7개 ElasticNet,기준선,qd_c2 + qd_max_minus_c2 + qd_c100 + fade_slope_2_100 + fade_int_2_100 + fade_slope_91_100 + fade_int_91_100,7,23.61,4.94,22.37,9.53,38.61,-0.1295,0.2427,"{'m__alpha': np.float64(0.1), 'm__l1_ratio': 0.1}",185.4,36.06
+F1 + qd_c2_bz,선택 : 표준화 민감도,dq_var + qd_c2_bz,2,6.63,2.83,6.63,3.05,10.92,-0.0394,0.048,,25.93,12.88
+F2 ElasticNet,선택 : 확장 후보,dq_var + dq_min + dq_mean + dq_skew + dq_kurt_p,5,10.75,7.17,10.58,5.21,16.23,-0.057,0.071,"{'m__alpha': np.float64(0.01), 'm__l1_ratio': 1.0}",30.38,12.71
+F2 Ridge,선택 : 규제 비교,dq_var + dq_min + dq_mean + dq_skew + dq_kurt_p,5,11.72,7.74,10.53,5.21,16.1,-0.0591,0.0496,{'m__alpha': np.float64(0.046415888336127774)},29.9,15.89
+F3 ElasticNet,선택 : 확장 후보,dq_var + dq_min + dq_mean + dq_skew + dq_kurt_p + dq_2v_p + qd_c2 + qd_max_minus_c2 + qd_c100 + fade_slope_2_100 + fade_int_2_100 + fade_slope_91_100 + fade_int_91_100,13,8.84,5.31,10.75,6.43,16.13,-0.0476,0.0614,"{'m__alpha': np.float64(0.004641588833612777), 'm__l1_ratio': 0.7}",33.45,9.72
+F3 Ridge,선택 : 규제 비교,dq_var + dq_min + dq_mean + dq_skew + dq_kurt_p + dq_2v_p + qd_c2 + qd_max_minus_c2 + qd_c100 + fade_slope_2_100 + fade_int_2_100 + fade_slope_91_100 + fade_int_91_100,13,9.35,5.51,13.94,8.67,20.01,-0.0573,0.0655,{'m__alpha': np.float64(0.46415888336127775)},28.81,14.93
+F4 ElasticNet,선택 : Batch 1 비교만,dq_var + dq_min + dq_mean + dq_skew + dq_kurt_p + dq_2v_p + qd_c2 + qd_max_minus_c2 + qd_c100 + fade_slope_2_100 + fade_int_2_100 + fade_slope_91_100 + fade_int_91_100 + chargetime_avg_2_6 + tmax_max + tmin_min + tavg_mean + ir_c2 + ir_min + ir_c100_minus_c2,20,9.36,4.55,9.7,5.05,14.83,-0.0617,0.0607,,,
+F1 RandomForest,선택 : 비선형 비교,dq_var,1,15.34,8.94,14.49,10.08,18.71,-0.0924,0.0745,"{'max_features': 0.5, 'min_samples_leaf': 2}",32.1,12.92
+F1 XGBoost,선택 : 비선형 비교,dq_var,1,16.42,7.7,15.45,11.47,20.98,-0.0981,0.1046,"{'max_depth': 2, 'min_child_weight': 3}",39.55,20.75
